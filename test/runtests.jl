@@ -1,6 +1,6 @@
 module NumMethodsTest
 
 include("toyTests.jl")
-# include("genTests.jl")
+include("genTests.jl")
 
 end
