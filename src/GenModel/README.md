@@ -73,5 +73,5 @@ As an example, Figure 1 plot the first order condition of the young 1, for a giv
 <p align="center">
   <b>Figure 3: First order condition, age 3</b>
   <br><br>
-  <img src="https://github.com/HugoLhuillier/NumMethods/blob/master/output/figures/GenModel/NumProblems/FOC_3_nosol.png" alt="FOC 3" style="width: 400px;"/>
+  <img src="https://github.com/HugoLhuillier/MacroTransfer/blob/master/output/figures/GenModel/NumProblems/FOC_3_nosol.png" alt="FOC 3" style="width: 400px;"/>
 </p>
