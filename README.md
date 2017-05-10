@@ -1,5 +1,6 @@
 # Master's thesis
 
+[![Build Status](https://travis-ci.org/HugoLhuillier/MacroTransfer.svg?branch=master)](https://travis-ci.org/HugoLhuillier/MacroTransfer)
 [![Build Status](https://img.shields.io/badge/Toy%20Model-Done-brightgreen.svg)](https://github.com/HugoLhuillier/NumMethods/tree/master/src/ToyModel)
 [![Build Status](https://img.shields.io/badge/General%20Model-In%20progress-orange.svg)](https://www.github.com/HugoLhuillier/NumMethods/tree/master/src/GenModel)
 
