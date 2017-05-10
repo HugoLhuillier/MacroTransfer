@@ -30,7 +30,7 @@ Both PFI and EGM match the analytical solutions - see Figure 1. The number of it
 <p align="center">
   <b>Figure 1: Numerical vs. analytical solutions</b>
   <br><br>
-  <img src="https://github.com/HugoLhuillier/NumMethods/blob/master/figures/ToyModel/num_vs_analytical.png" alt="Numerical vs. analytical" style="width: 400px;"/>
+  <img src="https://github.com/HugoLhuillier/MacroTransfer/blob/master/output/figures/ToyModel/num_vs_analytical.png" alt="Numerical vs. analytical" style="width: 400px;"/>
 </p>
 
 On the contrary, VFI is much less accurate than the two other methods. This is due to
@@ -41,7 +41,7 @@ On the contrary, VFI is much less accurate than the two other methods. This is d
 <p align="center">
   <b> Figure 2: Analytical vs. VFI </b>
   <br><br>
-  <img src="https://github.com/HugoLhuillier/NumMethods/blob/master/figures/ToyModel/ana_vs_vfi.png" alt="Numerical vs. analytical" style="width: 400px;"/>
+  <img src="https://github.com/HugoLhuillier/MacroTransfer/blob/master/output/figures/ToyModel/ana_vs_vfi.png" alt="Numerical vs. analytical" style="width: 400px;"/>
 </p>
 
 Finally, in agreement with the literature, we find that the fastest algorithm is EGM, followed by PFI. As expected, VFI is the least performant algorithm of those three.
@@ -49,5 +49,5 @@ Finally, in agreement with the literature, we find that the fastest algorithm is
 <p align="center">
   <b>Figure 3: Performance</b>
   <br><br>
-  <img src="https://github.com/HugoLhuillier/NumMethods/blob/master/figures/ToyModel/algo_perf.png" alt="Algo performance" style="width: 400px;"/>
+  <img src="https://github.com/HugoLhuillier/MacroTransfer/blob/master/output/figures/ToyModel/algo_perf.png" alt="Algo performance" style="width: 400px;"/>
 </p>

@@ -1,15 +1,15 @@
 # Master's thesis
 
 [![Build Status](https://travis-ci.org/HugoLhuillier/MacroTransfer.svg?branch=master)](https://travis-ci.org/HugoLhuillier/MacroTransfer)
-[![Build Status](https://img.shields.io/badge/Toy%20Model-Done-brightgreen.svg)](https://github.com/HugoLhuillier/NumMethods/tree/master/src/ToyModel)
-[![Build Status](https://img.shields.io/badge/General%20Model-In%20progress-orange.svg)](https://www.github.com/HugoLhuillier/NumMethods/tree/master/src/GenModel)
+[![Build Status](https://img.shields.io/badge/Toy%20Model-Done-brightgreen.svg)](https://github.com/HugoLhuillier/MacroTransfer/tree/master/src/ToyModel)
+[![Build Status](https://img.shields.io/badge/General%20Model-In%20progress-orange.svg)](https://github.com/HugoLhuillier/MacroTransfer/tree/master/src/GenModel)
 
 This repository contains the code used for my Master's thesis at Sciences Po Paris.
 
 This repository is structured in the following way:
 
-1. [src/ToyModel](https://github.com/HugoLhuillier/NumMethods/tree/master/src/ToyModel): uses value function iteration, policy function iteration, and the endogeneous grid method of Carroll (2005), to solves a simplified, two-periods version of the model. The solutions are also compared to the analytical ones, which can be derived in this case.
-1. [src/GenModel](https://www.github.com/HugoLhuillier/NumMethods/tree/master/src/GenModel): uses policy function iteration to solve the larger model. This part is still work in progress.
+1. [src/ToyModel](https://github.com/HugoLhuillier/MacroTransfer/tree/master/src/ToyModel): uses value function iteration, policy function iteration, and the endogeneous grid method of Carroll (2005), to solves a simplified, two-periods version of the model. The solutions are also compared to the analytical ones, which can be derived in this case.
+1. [src/GenModel](https://github.com/HugoLhuillier/MacroTransfer/tree/master/src/GenModel): uses policy function iteration to solve the larger model. This part is still work in progress.
 
 :rotating_light:**Warning**:rotating_light:: this repository uses the `Interpolations.jl` package to interpolate multi-dimensional functions, which is itself based on `AxisAlgorithm.jl`. Its current version features a small bug, as mentioned [here](https://github.com/JuliaMath/Interpolations.jl/issues/151). The problem has been solved in [this pull request](https://github.com/timholy/AxisAlgorithms.jl/pull/7), but has not been merged yet. For the code in this repo to run, one thus needs to implement manually the solution given in the pull request.
 
@@ -92,5 +92,5 @@ As it is well known in the literature, this kind of models are two complex to be
 <p align="center">
   <b>Figure 1: Numerical vs. analytical solutions</b>
   <br><br>
-  <img src="https://github.com/HugoLhuillier/NumMethods/blob/master/figures/ToyModel/num_vs_analytical.png" alt="Numerical vs. analytical" style="width: 400px;"/>
+  <img src="https://github.com/HugoLhuillier/MacroTransfer/blob/master/output/figures/ToyModel/num_vs_analytical.png" alt="Numerical vs. analytical" style="width: 400px;"/>
 </p>
