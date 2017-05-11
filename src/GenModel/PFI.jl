@@ -358,38 +358,67 @@ function old4!(p::Param, U::Utility, pol::Policies)
   A2, A3, B3 = interp(p, pol.A2, "A2"), interp(p, pol.A3, "A3"), interp(p, pol.B3, "B3")
 
   function f!(x, fvec, a_p::Float64, y_p::Float64, a_c::Float64, yi_c::Int, yi_p::Int)
-    if x[1] + x[2] > p.R + a_p + y_p
+    _a = 0.
+    if x[1] + _a > p.R + a_p + y_p
       fvec[1] = 1e9
-      fvec[2] = 1e9
     else
       Euc = 0
-      _a2  = A2[yi_c][a_c, x[1], x[2]]
+      _a2  = A2[yi_c][a_c, _a, x[1]]
       # compute the t = 3 expectation
       for yi_fp in 1:length(p.Y[:,3])
         for yi_fc in 1:length(p.Y[:,1])
-          _b3  = B3[yi_fp,yi_fc][_a2 + x[1]]
-          _a3  = A3[yi_fp,yi_fc][_a2 + x[1]]
-          Euc += U.du(p.R * (_a2 + x[1]) + p.Y[yi_fp,3]-_b3-_a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
+          _b3  = B3[yi_fp,yi_fc][_a2 + _a]
+          _a3  = A3[yi_fp,yi_fc][_a2 + _a]
+          Euc += U.du(p.R * (_a2 + _a) + p.Y[yi_fp,3]-_b3-_a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
         end
       end
-      fvec[1] = U.du(p.R * a_p + y_p - x[2] - x[1]) - p.α * p.R * p.β * Euc
-      fvec[2] = U.du(p.R * a_p + y_p - x[2] - x[1]) - p.α * U.du(p.R * a_c + p.Y[yi_c,2] + x[2] - _a2)
+      fvec[1] = U.du(p.R * a_p + y_p - x[1] - _a) - p.α * U.du(p.R * a_c + p.Y[yi_c,2] + x[1] - _a2)
     end
   end
 
-  function solver(a_p::Float64, y_p::Float64, a_c::Float64, yi_c::Int, yi_p::Int)
-    r = NLsolve.mcpsolve((x, fvec) -> f!(x, fvec, a_p, y_p, a_c, yi_c, yi_p), [0., 0.], [Inf, Inf],
-                 [0., 0.], reformulation = :smooth, autodiff = true, iterations = 150)
-    if !converged(r)
-      # use the same procedure as for the old3! function. in the first iteration, always converges in
-      # with the first mcpsolve
-      r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_p, y_p, a_c, yi_c, yi_p),
-                   r.zero, iterations = 150)
-      if !converged(r)
-        warn("Did not converged, ($a_p, $y_p, $a_c, $yi_c, $yi_p)")
+  function f(x, a_p::Float64, y_p::Float64, a_c::Float64, yi_c::Int, yi_p::Int)
+    if x > p.R + a_p + y_p
+      f1 = 1e9
+    else
+      Euc = 0
+      _a2  = A2[yi_c][a_c, 0., x]
+      # compute the t = 3 expectation
+      for yi_fp in 1:length(p.Y[:,3])
+        for yi_fc in 1:length(p.Y[:,1])
+          _b3  = B3[yi_fp,yi_fc][_a2]
+          _a3  = A3[yi_fp,yi_fc][_a2]
+          Euc += U.du(p.R * _a2 + p.Y[yi_fp,3]-_b3-_a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
+        end
       end
+      f1 = U.du(p.R * a_p + y_p - x) - p.α * U.du(p.R * a_c + p.Y[yi_c,2] + x - _a2)
     end
-    return r.zero
+    return f1
+  end
+
+  function solver(a_p::Float64, y_p::Float64, a_c::Float64, yi_c::Int, yi_p::Int)
+    # NOTE: takes into account the multiplicity of equilibrium
+    _a = 0
+    # check whether both choices are going to lie in the interior set
+    B  = linspace(0.,p.R * a_p + y_p,100)
+    F1 = f.(B,a_p,y_p,a_c,yi_c,yi_p)
+
+    if (any(x -> x == true, F1 .< 0))
+      # there exists an interior solution for both choices => set x[1] -> 0, and max on x[2]
+      # _a = 1e-7
+      r  = NLsolve.mcpsolve((x, fvec) -> f!(x, fvec, a_p, y_p, a_c, yi_c, yi_p), [0.], [Inf],
+                   [0.], reformulation = :smooth, autodiff = true, iterations = 100)
+      if !converged(r)
+        r  = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_p, y_p, a_c, yi_c, yi_p),
+                     r.zero, iterations = 100)
+        if !converged(r)
+          warn("Did not converged, ($a_p, $y_p, $a_c, $yi_c, $yi_p)")
+        end
+      end
+      _b = r.zero[1]
+    else
+      _b = 0.
+    end
+    return (_a, _b)
   end
 
   for (ai_p, a_p) in enumerate(p.a_grid)
