@@ -13,9 +13,13 @@ include("Utility.jl")
 # PFI functions
 #==========================#
 
+# CHANGED
+# 1. A4 -> 0
+# 2. A2 -> remove middle dimension
+
 function young1!(p::Param, U::Utility, pol::Policies)
   # interpolate the future and other agents markov strategies
-  B4, A4 = interp(p, pol.B4, "B4"), interp(p, pol.A4, "A4")
+  B4     = interp(p, pol.B4, "B4")
   B3, A3 = interp(p, pol.B3, "B3"), interp(p, pol.A3, "A3")
   A2     = interp(p, pol.A2, "A2")
 
@@ -32,36 +36,23 @@ function young1!(p::Param, U::Utility, pol::Policies)
       # compute the t = 2 expectation
       for yi_fc in 1:length(p.Y[:,2])
         for yi_fp in 1:length(p.Y[:,4])
-          _a4  = A4[yi_fp,yi_fc][a_fp, x[1]]
           _b4  = B4[yi_fp, yi_fc][a_fp, x[1]]
-          _a2  = A2[yi_fc][x[1], _a4, _b4]
+          _a2  = A2[yi_fc][x[1], _b4]
 
           # NOTE: gradient() do not access type ForwardDiff.Dual
           if typeof(x[1]) <: ForwardDiff.Dual{1,Float64}
-            _da  = gradient(A4[yi_fp,yi_fc], a_fp, x[1].value)[2]
             _db  = gradient(B4[yi_fp,yi_fc], a_fp, x[1].value)[2]
           else
-            _da  = gradient(A4[yi_fp,yi_fc], a_fp, x[1])[2]
             _db  = gradient(B4[yi_fp,yi_fc], a_fp, x[1])[2]
           end
 
           Eu2 += p.П[yi_c, yi_fc] * p.П[yi_p, yi_fp] *
                 U.du(p.R * x[1] + p.Y[yi_fc, 2] + _b4 - _a2) * (p.R + _db)
 
-          # compute the t = 3 expectation
-          for yi_ffp in 1:length(p.Y[:,3])
-            for yi_ffc in 1:length(p.Y[:,1])
-              _a3 = A3[yi_ffp,yi_ffc][_a2 + _a4]
-              _b3 = B3[yi_ffp,yi_ffc][_a2 + _a4]
-              Eu3 += p.П[yi_c, yi_fc] * p.П[yi_fc, yi_ffp] * p.П[yi_fc, yi_ffc] * p.П[yi_p, yi_fp] *
-                    U.du(p.R * (_a2 + _a4) + p.Y[yi_ffp,3] - _a3 - _b3)
-            end
-          end
-          Eu3 *= _da
         end
       end
 
-      fvec[1] = U.du(y_c + b - x[1]) - p.β * (Eu2 + p.R * p.β * Eu3)
+      fvec[1] = U.du(y_c + b - x[1]) - p.β * Eu2
     end
   end
 
@@ -72,30 +63,17 @@ function young1!(p::Param, U::Utility, pol::Policies)
     # compute the t = 2 expectation
     for yi_fc in 1:length(p.Y[:,2])
       for yi_fp in 1:length(p.Y[:,4])
-        _a4  = A4[yi_fp,yi_fc][a_fp, x]
         _b4  = B4[yi_fp, yi_fc][a_fp, x]
-        _a2  = A2[yi_fc][x, _a4, _b4]
-
-        _da  = gradient(A4[yi_fp,yi_fc], a_fp, x)[2]
+        _a2  = A2[yi_fc][x, _b4]
         _db  = gradient(B4[yi_fp,yi_fc], a_fp, x)[2]
 
         Eu2 += p.П[yi_c, yi_fc] * p.П[yi_p, yi_fp] *
               U.du(p.R * x + p.Y[yi_fc, 2] + _b4 - _a2) * (p.R + _db)
 
-        # compute the t = 3 expectation
-        for yi_ffp in 1:length(p.Y[:,3])
-          for yi_ffc in 1:length(p.Y[:,1])
-            _a3 = A3[yi_ffp,yi_ffc][_a2 + _a4]
-            _b3 = B3[yi_ffp,yi_ffc][_a2 + _a4]
-            Eu3 += p.П[yi_c, yi_fc] * p.П[yi_fc, yi_ffp] * p.П[yi_fc, yi_ffc] * p.П[yi_p, yi_fp] *
-                  U.du(p.R * (_a2 + _a4) + p.Y[yi_ffp,3] - _a3 - _b3)
-          end
-        end
-        Eu3 *= _da
       end
     end
 
-    return U.du(y_c + b - x) - p.β * (Eu2 + p.R * p.β * Eu3)
+    return U.du(y_c + b - x) - p.β * Eu2
   end
 
   function solver(a_fp::Float64, b::Float64, y_c::Float64, yi_c::Int, yi_p::Int)
@@ -174,7 +152,7 @@ end
 function young2!(p::Param, U::Utility, pol::Policies)
   A3, B3  = interp(p, pol.A3, "A3"), interp(p, pol.B3, "B3")
 
-  function f!(x, fvec, a_c::Float64, a_fp::Float64, b::Float64, y_c::Float64, yi_c::Int)
+  function f!(x, fvec, a_c::Float64, b::Float64, y_c::Float64, yi_c::Int)
     # ensures that one cannot consume more than what one has
     if x[1] > p.R * a_c + b + y_c
       fvec[1] = 1e9
@@ -183,16 +161,16 @@ function young2!(p::Param, U::Utility, pol::Policies)
       # compute the t = 2 expectation
       for yi_fp in 1:length(p.Y[:,3])
         for yi_fc in 1:length(p.Y[:,1])
-          _b3 = B3[yi_fp,yi_fc][x[1] + a_fp]
-          _a3 = A3[yi_fp,yi_fc][x[1] + a_fp]
-          Eu3 += U.du(p.R * (x[1] + a_fp) + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp] * p.П[yi_c,yi_fc]
+          _b3 = B3[yi_fp,yi_fc][x[1]]
+          _a3 = A3[yi_fp,yi_fc][x[1]]
+          Eu3 += U.du(p.R * x[1] + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp] * p.П[yi_c,yi_fc]
         end
       end
       fvec[1] = U.du(p.R * a_c + b + y_c - x[1]) - p.R * p.β * Eu3
     end
   end
 
-  function f(x, a_c::Float64, a_fp::Float64, b::Float64, y_c::Float64, yi_c::Int)
+  function f(x, a_c::Float64, b::Float64, y_c::Float64, yi_c::Int)
     # ensures that one cannot consume more than what one has
     if x > p.R * a_c + b + y_c
       return 1e9
@@ -201,39 +179,39 @@ function young2!(p::Param, U::Utility, pol::Policies)
       # compute the t = 2 expectation
       for yi_fp in 1:length(p.Y[:,3])
         for yi_fc in 1:length(p.Y[:,1])
-          _b3 = B3[yi_fp,yi_fc][x + a_fp]
-          _a3 = A3[yi_fp,yi_fc][x + a_fp]
-          Eu3 += U.du(p.R * (x + a_fp) + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp] * p.П[yi_c,yi_fc]
+          _b3 = B3[yi_fp,yi_fc][x]
+          _a3 = A3[yi_fp,yi_fc][x]
+          Eu3 += U.du(p.R * x + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp] * p.П[yi_c,yi_fc]
         end
       end
       return U.du(p.R * a_c + b + y_c - x) - p.R * p.β * Eu3
     end
   end
 
-  function solver(a_c::Float64, a_fp::Float64, b::Float64, y_c::Float64, yi_c::Int)
+  function solver(a_c::Float64, b::Float64, y_c::Float64, yi_c::Int)
     # find the root of the FOC. use same method as young!1, see above
     X = linspace(0., p.R * a_c + b + y_c - 1e-1,100)
     F = ones(length(X))
-    F = f.(X, a_c,a_fp,b,y_c,yi_c)
+    F = f.(X, a_c,b,y_c,yi_c)
     if any(x -> x == true, F .< 0)
       debug("Interior")
       # r = NLsolve.mcpsolve((x, fvec) -> f!(x, fvec, a_c, a_fp, b, y_c, yi_c), [0.], [Inf],
       #              [(p.R * a_c + b + y_c) / (1 + p.R)], reformulation = :smooth,
       #              iterations = 150, autodiff = true)
-      r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, a_fp, b, y_c, yi_c),
+      r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
                    [(p.R * a_c + b + y_c) / (1 + p.R)], iterations = 150)
       if !converged(r)
         debug("Not converged by middle")
-        r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, a_fp, b, y_c, yi_c),
+        r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
                      [0.], iterations = 150)
         if !converged(r)
           debug("Not converged by 0")
           # r = NLsolve.mcpsolve((x, fvec) -> f!(x, fvec, a_c, a_fp, b, y_c, yi_c), [0.], [Inf],
           #               [p.R * a_c + b + y_c - 1e-2], reformulation = :smooth, iterations = 100, autodiff = true)
-          r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, a_fp, b, y_c, yi_c),
+          r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
                         [p.R * a_c + b + y_c - 1e-2], iterations = 150)
           if !converged(r)
-            warn("Did not converged, ($a_fp, $b, $y_c, $yi_c, $yi_p)")
+            warn("Did not converged, ($b, $y_c, $yi_c, $yi_p)")
           end
         end
       end
@@ -247,17 +225,15 @@ function young2!(p::Param, U::Utility, pol::Policies)
 
   err = 0
   for (ai_c, a_c) in enumerate(p.a_grid)
-    for (ai_fp, a_fp) in enumerate(p.a_grid)
       for (bi, b) in enumerate(p.b_grid)
         for (yi_c, y_c) in enumerate(p.Y[:,2])
-            _A2 = solver(a_c,a_fp,b,y_c,yi_c)
-            _A2 = _A2 >= 0. ? _A2 : 0.
-            # update the distance between the two policy functions
-            err = abs(pol.A2[ai_c,ai_fp,bi,yi_c] - _A2) > err ?
-                  abs(pol.A2[ai_c,ai_fp,bi,yi_c] - _A2) : err
-            pol.A2[ai_c,ai_fp,bi,yi_c] = _A2
+          _A2 = solver(a_c,b,y_c,yi_c)
+          _A2 = _A2 >= 0. ? _A2 : 0.
+          # update the distance between the two policy functions
+          err = abs(pol.A2[ai_c,bi,yi_c] - _A2) > err ?
+                abs(pol.A2[ai_c,bi,yi_c] - _A2) : err
+          pol.A2[ai_c,bi,yi_c] = _A2
         end
-      end
     end
   end
   info(" Young2! ended")
@@ -267,7 +243,7 @@ end
 
 function old3!(p::Param, U::Utility, pol::Policies)
   # markov strategies to be interpolated
-  A4, B4  = interp(p, pol.A4, "A4"), interp(p, pol.B4, "B4")
+  B4      = interp(p, pol.B4, "B4")
   A1      = interp(p, pol.A1, "A1")
   A2      = interp(p, pol.A2, "A2")
 
@@ -286,11 +262,10 @@ function old3!(p::Param, U::Utility, pol::Policies)
       Eu4, Eu2 = 0., 0.
       for yi_fp in 1:length(p.Y[:,4])
         for yi_fc in 1:length(p.Y[:,2])
-          _a4  = A4[yi_fp,yi_fc][x[1],_a1]
           _b4  = B4[yi_fp,yi_fc][x[1],_a1]
-          _a2  = A2[yi_fc][_a1,_a4,_b4]
+          _a2  = A2[yi_fc][_a1,_b4]
 
-          Eu4 += U.du(p.R * x[1] + p.Y[yi_fp,4] - _b4 - _a4) * p.П[yi_p,yi_fp] * p.П[yi_c,yi_fc]
+          Eu4 += U.du(p.R * x[1] + p.Y[yi_fp,4] - _b4) * p.П[yi_p,yi_fp] * p.П[yi_c,yi_fc]
           Eu2 += U.du(p.R * _a1 + p.Y[yi_fc,2] + _b4 - _a2) * p.П[yi_p,yi_fp] * p.П[yi_c,yi_fc]
         end
       end
@@ -335,11 +310,11 @@ function old3!(p::Param, U::Utility, pol::Policies)
     # ensure that the solution are not negative; should not happen
     if (!converged(r)) || (any(x -> x == true, r.zero .< -1e9))
       warn("Did not converged, ($a_p, $y_p, $y_c, $yi_p, $yi_c, $ai_p)")
-      _A3, _B3 = pol.A3[ai_p,yi_p,yi_c], pol.B3[ai_p,yi_p,yi_c]
+      _a3, _b3 = pol.A3[ai_p,yi_p,yi_c], pol.B3[ai_p,yi_p,yi_c]
     else
-      _A3, _B3 = r.zero
+      _a3, _b3 = r.zero
     end
-    return (_A3, _B3)
+    return (_a3, _b3)
   end
 
   for (ai_p, a_p) in enumerate(p.a_grid)
@@ -358,21 +333,20 @@ function old4!(p::Param, U::Utility, pol::Policies)
   A2, A3, B3 = interp(p, pol.A2, "A2"), interp(p, pol.A3, "A3"), interp(p, pol.B3, "B3")
 
   function f!(x, fvec, a_p::Float64, y_p::Float64, a_c::Float64, yi_c::Int, yi_p::Int)
-    _a = 0.
-    if x[1] + _a > p.R + a_p + y_p
+    if x[1] > p.R + a_p + y_p
       fvec[1] = 1e9
     else
       Euc = 0
-      _a2  = A2[yi_c][a_c, _a, x[1]]
+      _a2  = A2[yi_c][a_c, x[1]]
       # compute the t = 3 expectation
       for yi_fp in 1:length(p.Y[:,3])
         for yi_fc in 1:length(p.Y[:,1])
-          _b3  = B3[yi_fp,yi_fc][_a2 + _a]
-          _a3  = A3[yi_fp,yi_fc][_a2 + _a]
-          Euc += U.du(p.R * (_a2 + _a) + p.Y[yi_fp,3]-_b3-_a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
+          _b3  = B3[yi_fp,yi_fc][_a2]
+          _a3  = A3[yi_fp,yi_fc][_a2]
+          Euc += U.du(p.R * _a2 + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
         end
       end
-      fvec[1] = U.du(p.R * a_p + y_p - x[1] - _a) - p.α * U.du(p.R * a_c + p.Y[yi_c,2] + x[1] - _a2)
+      fvec[1] = U.du(p.R * a_p + y_p - x[1]) - p.α * U.du(p.R * a_c + p.Y[yi_c,2] + x[1] - _a2)
     end
   end
 
@@ -381,7 +355,7 @@ function old4!(p::Param, U::Utility, pol::Policies)
       f1 = 1e9
     else
       Euc = 0
-      _a2  = A2[yi_c][a_c, 0., x]
+      _a2  = A2[yi_c][a_c, x]
       # compute the t = 3 expectation
       for yi_fp in 1:length(p.Y[:,3])
         for yi_fc in 1:length(p.Y[:,1])
@@ -397,7 +371,6 @@ function old4!(p::Param, U::Utility, pol::Policies)
 
   function solver(a_p::Float64, y_p::Float64, a_c::Float64, yi_c::Int, yi_p::Int)
     # NOTE: takes into account the multiplicity of equilibrium
-    _a = 0
     # check whether both choices are going to lie in the interior set
     B  = linspace(0.,p.R * a_p + y_p,100)
     F1 = f.(B,a_p,y_p,a_c,yi_c,yi_p)
@@ -418,16 +391,15 @@ function old4!(p::Param, U::Utility, pol::Policies)
     else
       _b = 0.
     end
-    return (_a, _b)
+    return _b
   end
 
   for (ai_p, a_p) in enumerate(p.a_grid)
     for (ai_c, a_c) in enumerate(p.a_grid)
       for (yi_p, y_p) in enumerate(p.Y[:,4])
         for yi_c in 1:length(p.Y[:,2])
-          _A4, _B4 = solver(a_p, y_p, a_c, yi_c, yi_p)
+          _B4 = solver(a_p, y_p, a_c, yi_c, yi_p)
           # Both may be negative due to approximations
-          pol.A4[ai_p, ai_c, yi_p, yi_c] = _A4 >= 0. ? _A4 : 0.
           pol.B4[ai_p, ai_c, yi_p, yi_c] = _B4 >= 0. ? _B4 : 0.
         end
       end

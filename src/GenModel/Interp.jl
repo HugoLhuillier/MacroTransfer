@@ -21,12 +21,10 @@ function interp(p::Param, X::Array{Float64}, pol::String)
     F = Array{Any}(Ys)
     for i in 1:Ys
       # itp  = interpolate(X[:,:,:,i], (BSpline(Cubic(Line())),
-      #                                 BSpline(Cubic(Line())),
       #                                 BSpline(Cubic(Line()))), OnGrid())
-      itp  = interpolate(X[:,:,:,i], (BSpline(Quadratic(Line())),
-                                      BSpline(Quadratic(Line())),
+      itp  = interpolate(X[:,:,i], (BSpline(Quadratic(Line())),
                                       BSpline(Quadratic(Line()))), OnGrid())
-      itp  = scale(itp, p.a_grid, p.a_grid, p.b_grid)
+      itp  = scale(itp, p.a_grid, p.b_grid)
       F[i] = extrapolate(itp, Linear())
     end
   elseif (pol == "A3") || (pol == "B3")
@@ -39,7 +37,7 @@ function interp(p::Param, X::Array{Float64}, pol::String)
         F[i,j] = extrapolate(itp, Linear())
       end
     end
-  elseif (pol == "A4") || (pol == "B4")
+  elseif pol == "B4"
     F = Array{Any}(Ys,Ys)
     for i in 1:Ys
       for j in 1:Ys

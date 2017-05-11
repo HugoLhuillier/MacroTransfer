@@ -58,12 +58,11 @@ end
   end
 
   @testset "Age 2 policies" begin
-    @test size(pol.A2)      == (As,As,Bs,Ys)
-    @test pol.A2[:,2,:,:]   == pol.A2[:,1,:,:];
-    @test all(x -> x == true, pol.A2[:,:,2,:] .> pol.A2[:,:,1,:]);
-    @test all(x -> x == true, pol.A2[:,:,:,2] .> pol.A2[:,:,:,1]);
-    @test all(x -> x == true, pol.A2[2,:,:,:] .> pol.A2[1,:,:,:]);
-    @test pol.A2[end,1,end,1,1] == sav(p.a_grid[end],p.b_grid[end],p.Y[1,2])
+    @test size(pol.A2)      == (As,Bs,Ys)
+    @test all(x -> x == true, pol.A2[:,2,:] .> pol.A2[:,1,:]);
+    @test all(x -> x == true, pol.A2[:,:,2] .> pol.A2[:,:,1]);
+    @test all(x -> x == true, pol.A2[2,:,:] .> pol.A2[1,:,:]);
+    @test pol.A2[end,end,1] == sav(p.a_grid[end],p.b_grid[end],p.Y[1,2])
   end
 
   @testset "Age 3 policies" begin
@@ -79,13 +78,11 @@ end
   end
 
   @testset "Age 4 policies" begin
-    @test size(pol.A4)    == (As,As,Ys,Ys)
     @test size(pol.B4)    == (As,As,Ys,Ys)
-    @test pol.A4[:,:,:,1] == pol.A4[:,:,:,2];
-    @test pol.A4[:,2,:,:] == pol.A4[:,1,:,:];
-    @test all(x -> x == true, pol.A4[2,:,:,:] .> pol.A4[1,:,:,:]);
-    @test all(x -> x == true, pol.A4[:,:,2,:] .> pol.A4[:,:,1,:]);
-    @test pol.A4[end,1,1,1] == sav(p.a_grid[end],0.,p.Y[1,4])
+    @test pol.B4[:,:,:,1] == pol.B4[:,:,:,2];
+    @test pol.B4[:,2,:,:] == pol.B4[:,1,:,:];
+    @test all(x -> x == true, pol.B4[2,:,:,:] .> pol.B4[1,:,:,:]);
+    @test all(x -> x == true, pol.B4[:,:,2,:] .> pol.B4[:,:,1,:]);
     @test_approx_eq pol.B4[end,1,1,1] tra(p.a_grid[end],p.Y[1,4])
   end
 
