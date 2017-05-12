@@ -13,6 +13,8 @@ function interp(p::Param, X::Array{Float64}, pol::String)
         #                       BSpline(Cubic(Line()))), OnGrid())
         itp    = interpolate(X[:,:,i,j], (BSpline(Quadratic(Line())),
                               BSpline(Quadratic(Line()))), OnGrid())
+        # itp    = interpolate(X[:,:,i,j], (BSpline(Linear()),
+        #                       BSpline(Linear())), OnGrid())
         itp    = scale(itp, p.a_grid, p.b_grid)
         F[i,j] = extrapolate(itp, Linear())
       end
@@ -20,10 +22,12 @@ function interp(p::Param, X::Array{Float64}, pol::String)
   elseif pol == "A2"
     F = Array{Any}(Ys)
     for i in 1:Ys
-      # itp  = interpolate(X[:,:,:,i], (BSpline(Cubic(Line())),
+      # itp  = interpolate(X[:,:,i], (BSpline(Cubic(Line())),
       #                                 BSpline(Cubic(Line()))), OnGrid())
       itp  = interpolate(X[:,:,i], (BSpline(Quadratic(Line())),
                                       BSpline(Quadratic(Line()))), OnGrid())
+      # itp  = interpolate(X[:,:,i], (BSpline(Linear()),
+      #                                 BSpline(Linear())), OnGrid())
       itp  = scale(itp, p.a_grid, p.b_grid)
       F[i] = extrapolate(itp, Linear())
     end
@@ -33,6 +37,7 @@ function interp(p::Param, X::Array{Float64}, pol::String)
       for j in 1:Ys
         # itp    = interpolate(X[:,i,j], (BSpline(Cubic(Line()))), OnGrid())
         itp    = interpolate(X[:,i,j], (BSpline(Quadratic(Line()))), OnGrid())
+        # itp    = interpolate(X[:,i,j], (BSpline(Linear())), OnGrid())
         itp    = scale(itp, p.a_grid)
         F[i,j] = extrapolate(itp, Linear())
       end
@@ -45,6 +50,8 @@ function interp(p::Param, X::Array{Float64}, pol::String)
         #                                BSpline(Cubic(Line()))), OnGrid())
         itp    = interpolate(X[:,:,i,j], (BSpline(Quadratic(Line())),
                                        BSpline(Quadratic(Line()))), OnGrid())
+        # itp    = interpolate(X[:,:,i,j], (BSpline(Linear()),
+        #                                BSpline(Linear())), OnGrid())
         itp    = scale(itp, p.a_grid, p.a_grid)
         F[i,j] = extrapolate(itp, Linear())
       end

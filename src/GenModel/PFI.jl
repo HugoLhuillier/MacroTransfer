@@ -1,6 +1,6 @@
 module GenPFI
 
-using Interpolations, ForwardDiff, NLsolve
+using Interpolations, ForwardDiff, NLsolve, Roots
 using QuantEcon
 using Logging
 Logging.configure(level=INFO)
@@ -89,7 +89,6 @@ function young1!(p::Param, U::Utility, pol::Policies)
     debug("New solver, ($a_fp, $b, $y_c, $yi_c, $yi_p)")
 
     X = linspace(0., b+y_c-1e-1,100)
-    F = ones(length(X))
     F = f.(X, a_fp,b,y_c,yi_c,yi_p)
     # if any(x -> x == true, F .< 0)
     #   debug("Interior")
@@ -110,22 +109,30 @@ function young1!(p::Param, U::Utility, pol::Policies)
       debug("Interior")
       # r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_fp, b, y_c, yi_c, yi_p), [0.], [Inf],
       #            [(b + y_c)/(1+p.R)], reformulation = :smooth, iterations = 150, autodiff = true)
-      r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_fp, b, y_c, yi_c, yi_p),
+      r   = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_fp, b, y_c, yi_c, yi_p),
                   [(b + y_c)/(1+p.R)], iterations = 150)
+      _a1 = r.zero[1]
       if !converged(r)
         debug("Not converged by middle")
-        r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_fp, b, y_c, yi_c, yi_p),
+        r   = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_fp, b, y_c, yi_c, yi_p),
                       [0.], iterations = 100)
+        _a1 = r.zero[1]
         if !converged(r)
           debug("Not converged by 0")
           r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_fp, b, y_c, yi_c, yi_p),
                         [b + y_c - 1e-2], iterations = 100)
+          _a1 = r.zero[1]
           if !converged(r)
-            warn("Did not converged, ($a_fp, $b, $y_c, $yi_c, $yi_p)")
+            # do brute force and use fzero from Roots package
+            try
+              _a1 = fzero(x -> f(x,a_fp,b,y_c,yi_c,yi_p),b+y_c-1e-1,[0.;b + y_c])
+            catch
+              warn("Did not converged, ($a_fp, $b, $y_c, $yi_c, $yi_p)")
+              _a1 = 0.
+            end
           end
         end
       end
-      _a1 = r.zero[1]
     else
       debug("Corner")
       _a1 = 0.
@@ -428,7 +435,7 @@ function ite(maxIter::Int, p::Param;
       return pol
       break
     elseif iter == maxIter
-      error("No solutions found after $iter iterations")
+      warn("No solutions found after $iter iterations")
       return pol
     end
 
