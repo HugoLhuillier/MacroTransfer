@@ -13,10 +13,6 @@ include("Utility.jl")
 # PFI functions
 #==========================#
 
-# CHANGED
-# 1. A4 -> 0
-# 2. A2 -> remove middle dimension
-
 function young1!(p::Param, U::Utility, pol::Policies)
   # interpolate the future and other agents markov strategies
   B4     = interp(p, pol.B4, "B4")
@@ -27,7 +23,7 @@ function young1!(p::Param, U::Utility, pol::Policies)
   function f!(x, fvec, a_fp::Float64, b::Float64, y_c::Float64, yi_c::Int, yi_p::Int)
     # ensures that one cannot consume more than what one's have
     # less costly than putting an upper bound on the solver
-    if x[1] > y_c + b
+    if (x[1] > y_c + b) || isequal(x[1],NaN)
       fvec[1] = 1e9
     else
       Eu2 = 0
@@ -37,18 +33,16 @@ function young1!(p::Param, U::Utility, pol::Policies)
       for yi_fc in 1:length(p.Y[:,2])
         for yi_fp in 1:length(p.Y[:,4])
           _b4  = B4[yi_fp, yi_fc][a_fp, x[1]]
-          _a2  = A2[yi_fc][x[1], _b4]
-
           # NOTE: gradient() do not access type ForwardDiff.Dual
           if typeof(x[1]) <: ForwardDiff.Dual{1,Float64}
             _db  = gradient(B4[yi_fp,yi_fc], a_fp, x[1].value)[2]
           else
             _db  = gradient(B4[yi_fp,yi_fc], a_fp, x[1])[2]
           end
+          _a2  = A2[yi_fc][x[1], _b4]
 
           Eu2 += p.П[yi_c, yi_fc] * p.П[yi_p, yi_fp] *
                 U.du(p.R * x[1] + p.Y[yi_fc, 2] + _b4 - _a2) * (p.R + _db)
-
         end
       end
 
@@ -64,12 +58,11 @@ function young1!(p::Param, U::Utility, pol::Policies)
     for yi_fc in 1:length(p.Y[:,2])
       for yi_fp in 1:length(p.Y[:,4])
         _b4  = B4[yi_fp, yi_fc][a_fp, x]
-        _a2  = A2[yi_fc][x, _b4]
         _db  = gradient(B4[yi_fp,yi_fc], a_fp, x)[2]
+        _a2  = A2[yi_fc][x, _b4]
 
         Eu2 += p.П[yi_c, yi_fc] * p.П[yi_p, yi_fp] *
               U.du(p.R * x + p.Y[yi_fc, 2] + _b4 - _a2) * (p.R + _db)
-
       end
     end
 
@@ -90,25 +83,9 @@ function young1!(p::Param, U::Utility, pol::Policies)
 
     X = linspace(0., b+y_c-1e-1,100)
     F = f.(X, a_fp,b,y_c,yi_c,yi_p)
-    # if any(x -> x == true, F .< 0)
-    #   debug("Interior")
-    #   r   = fzero(x -> f(x,a_fp,b,y_c,yi_c,yi_p),b/2,[0.;b + y_c])
-    #   if length(r) > 1
-    #     debug("Multiple solution")
-    #     _a1 = r[end]
-    #   else
-    #     _a1 = r[1]
-    #   end
-    # else
-    #   debug("Corner")
-    #   _a1 = 0.
-    # end
-    # return _a1
 
     if any(x -> x == true, F .< 0)
       debug("Interior")
-      # r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_fp, b, y_c, yi_c, yi_p), [0.], [Inf],
-      #            [(b + y_c)/(1+p.R)], reformulation = :smooth, iterations = 150, autodiff = true)
       r   = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_fp, b, y_c, yi_c, yi_p),
                   [(b + y_c)/(1+p.R)], iterations = 150)
       _a1 = r.zero[1]
@@ -161,7 +138,7 @@ function young2!(p::Param, U::Utility, pol::Policies)
 
   function f!(x, fvec, a_c::Float64, b::Float64, y_c::Float64, yi_c::Int)
     # ensures that one cannot consume more than what one has
-    if x[1] > p.R * a_c + b + y_c
+    if x[1] > p.R * a_c + b + y_c || isequal(x[1],NaN)
       fvec[1] = 1e9
     else
       Eu3 = 0
@@ -170,6 +147,7 @@ function young2!(p::Param, U::Utility, pol::Policies)
         for yi_fc in 1:length(p.Y[:,1])
           _b3 = B3[yi_fp,yi_fc][x[1]]
           _a3 = A3[yi_fp,yi_fc][x[1]]
+
           Eu3 += U.du(p.R * x[1] + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp] * p.П[yi_c,yi_fc]
         end
       end
@@ -188,6 +166,7 @@ function young2!(p::Param, U::Utility, pol::Policies)
         for yi_fc in 1:length(p.Y[:,1])
           _b3 = B3[yi_fp,yi_fc][x]
           _a3 = A3[yi_fp,yi_fc][x]
+
           Eu3 += U.du(p.R * x + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp] * p.П[yi_c,yi_fc]
         end
       end
@@ -202,32 +181,34 @@ function young2!(p::Param, U::Utility, pol::Policies)
     F = f.(X, a_c,b,y_c,yi_c)
     if any(x -> x == true, F .< 0)
       debug("Interior")
-      # r = NLsolve.mcpsolve((x, fvec) -> f!(x, fvec, a_c, a_fp, b, y_c, yi_c), [0.], [Inf],
-      #              [(p.R * a_c + b + y_c) / (1 + p.R)], reformulation = :smooth,
-      #              iterations = 150, autodiff = true)
-      r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
+      r   = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
                    [(p.R * a_c + b + y_c) / (1 + p.R)], iterations = 150)
+      _a2 = r.zero[1]
       if !converged(r)
         debug("Not converged by middle")
-        r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
+        r   = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
                      [0.], iterations = 150)
+        _a2 = r.zero[1]
         if !converged(r)
           debug("Not converged by 0")
-          # r = NLsolve.mcpsolve((x, fvec) -> f!(x, fvec, a_c, a_fp, b, y_c, yi_c), [0.], [Inf],
-          #               [p.R * a_c + b + y_c - 1e-2], reformulation = :smooth, iterations = 100, autodiff = true)
-          r = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
+          r   = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
                         [p.R * a_c + b + y_c - 1e-2], iterations = 150)
+          _a2 = r.zero[1]
           if !converged(r)
-            warn("Did not converged, ($b, $y_c, $yi_c, $yi_p)")
+            try f(x, a_c::Float64, b::Float64, y_c::Float64, yi_c::Int)
+              _a2 = fzero(x -> f(x,a_c,b,y_c,yi_c),p.R * a_c +b+y_c-1e-1,[0.;p.R * a_c +b + y_c])
+            catch
+              warn("Did not converged, ($a_fp, $b, $y_c, $yi_c, $yi_p)")
+              _a2 = 0.
+            end
           end
         end
       end
-      _a1 = r.zero[1]
     else
       debug("Corner")
-      _a1 = 0.
+      _a2 = 0.
     end
-    return _a1
+    return _a2
   end
 
   err = 0
@@ -255,7 +236,7 @@ function old3!(p::Param, U::Utility, pol::Policies)
   A2      = interp(p, pol.A2, "A2")
 
   function f!(x, fvec, a_p::Float64, y_p::Float64, y_c::Float64, yi_p::Int, yi_c::Int)
-    if x[1] + x[2] > p.R * a_p + y_p
+    if x[1] + x[2] > p.R * a_p + y_p || any(x -> x == true, isequal.(x,NaN))
       fvec[1] = 1e9
       fvec[2] = 1e9
     else
@@ -265,6 +246,7 @@ function old3!(p::Param, U::Utility, pol::Policies)
       else
         _da_a, _da_b = gradient(A1[yi_c, yi_p], x[1], x[2])
       end
+
       # compute the t = 4 expectations
       Eu4, Eu2 = 0., 0.
       for yi_fp in 1:length(p.Y[:,4])
@@ -283,12 +265,10 @@ function old3!(p::Param, U::Utility, pol::Policies)
     end
   end
 
-  function solver(a_p::Float64, y_p::Float64, y_c::Float64, yi_p::Int, yi_c::Int, ai_p::Int)
+  function solver(a0::Float64, b0::Float64,
+                  a_p::Float64, y_p::Float64, y_c::Float64, yi_p::Int, yi_c::Int, ai_p::Int)
     # find the roots of the system of equations. try to guess in a smart way the
     # initial value
-    c0 = (p.R * a_p + y_p) / 7
-    a0 = min(p.R * a_p + y_p - c0, y_p + a_p / (1 + p.R))
-    b0 = max(0., p.R * a_p + y_p - c0 - a0)
     r = NLsolve.mcpsolve((x, fvec) -> f!(x, fvec, a_p, y_p, y_c, yi_p, yi_c), [0., 0.], [Inf, Inf],
                  [a0, b0], reformulation = :smooth, iterations = 150, autodiff = true)
     # in most of the cases, the solution does exist, but mcpsolve did not find it => multi-start approach
@@ -316,18 +296,65 @@ function old3!(p::Param, U::Utility, pol::Policies)
 
     # ensure that the solution are not negative; should not happen
     if (!converged(r)) || (any(x -> x == true, r.zero .< -1e9))
-      warn("Did not converged, ($a_p, $y_p, $y_c, $yi_p, $yi_c, $ai_p)")
-      _a3, _b3 = pol.A3[ai_p,yi_p,yi_c], pol.B3[ai_p,yi_p,yi_c]
+      # warn("Did not converged, ($a_p, $y_p, $y_c, $yi_p, $yi_c, $ai_p)")
+      # _a3, _b3 = pol.A3[ai_p,yi_p,yi_c], pol.B3[ai_p,yi_p,yi_c]
+      _a3, _b3 = Void, Void
     else
       _a3, _b3 = r.zero
     end
     return (_a3, _b3)
   end
 
+  function gen_solver(a_p::Float64,y_p::Float64,y_c::Float64,yi_p::Int,yi_c::Int,ai_p::Int)
+    debug("New solver")
+    maxRoots = 30
+    start    = [(0.,0.);(0.,p.R * a_p + y_p);(p.R * a_p + y_p,0.);
+            ((p.R * a_p + y_p)/2, (p.R * a_p + y_p)/2)]
+
+    for i in size(start)[1]:maxRoots
+      a0, b0 = (p.R * a_p + y_p) * rand(1)[1], (p.R * a_p + y_p) * rand(1)[1]
+      if a0 + b0 > p.R * a_p + y_p
+        if rand(1)[1] > 0.5
+          a0 = min(a0, p.R * a_p + y_p)
+          b0 = p.R * a_p + y_p - a0
+        else
+          b0 = min(b0, p.R * a_p + y_p)
+          a0 = p.R * a_p + y_p - b0
+        end
+      end
+      push!(start,(a0,b0))
+    end
+
+    r        = Tuple[]
+    for i in 1:maxRoots
+      _a, _b = solver(start[i]..., a_p,y_p,y_c,yi_p,yi_c,ai_p)
+      if all(x -> x == true, [_a,_b] .!= Void)
+        _a, _b = round(_a,3), round(_b,3)
+        if all(x -> x == false, [isequal(r[i],(_a,_b)) for i in 1:size(r)[1]])
+          push!(r, (_a, _b))
+          debug("New root: ($_a, $_b)")
+        end
+      end
+    end
+
+    if size(r)[1] == 0
+      warn("Did not converged")
+    end
+
+    _a, _b = 0., 0.
+    for i in 1:size(r)[1]
+      if r[i][1] > _a
+        _a, _b = r[i]
+      end
+    end
+
+    return (_a,_b)
+  end
+
   for (ai_p, a_p) in enumerate(p.a_grid)
     for (yi_p, y_p) in enumerate(p.Y[:,3])
       for (yi_c,y_c) in enumerate(p.Y[:,1])
-        _A3, _B3 = solver(a_p, y_p, y_c, yi_p, yi_c, ai_p)
+        _A3, _B3 = gen_solver(a_p, y_p, y_c, yi_p, yi_c, ai_p)
         pol.A3[ai_p,yi_p,yi_c] = _A3 >= 0. ? _A3 : 0.
         pol.B3[ai_p,yi_p,yi_c] = _B3 >= 0. ? _B3 : 0.
       end
@@ -340,16 +367,17 @@ function old4!(p::Param, U::Utility, pol::Policies)
   A2, A3, B3 = interp(p, pol.A2, "A2"), interp(p, pol.A3, "A3"), interp(p, pol.B3, "B3")
 
   function f!(x, fvec, a_p::Float64, y_p::Float64, a_c::Float64, yi_c::Int, yi_p::Int)
-    if x[1] > p.R + a_p + y_p
+    if x[1] > p.R + a_p + y_p || isequal(x[1],NaN)
       fvec[1] = 1e9
     else
-      Euc = 0
+      Euc  = 0
       _a2  = A2[yi_c][a_c, x[1]]
       # compute the t = 3 expectation
       for yi_fp in 1:length(p.Y[:,3])
         for yi_fc in 1:length(p.Y[:,1])
           _b3  = B3[yi_fp,yi_fc][_a2]
           _a3  = A3[yi_fp,yi_fc][_a2]
+
           Euc += U.du(p.R * _a2 + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
         end
       end
@@ -361,13 +389,14 @@ function old4!(p::Param, U::Utility, pol::Policies)
     if x > p.R + a_p + y_p
       f1 = 1e9
     else
-      Euc = 0
+      Euc  = 0
       _a2  = A2[yi_c][a_c, x]
       # compute the t = 3 expectation
       for yi_fp in 1:length(p.Y[:,3])
         for yi_fc in 1:length(p.Y[:,1])
           _b3  = B3[yi_fp,yi_fc][_a2]
           _a3  = A3[yi_fp,yi_fc][_a2]
+
           Euc += U.du(p.R * _a2 + p.Y[yi_fp,3]-_b3-_a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
         end
       end
@@ -416,7 +445,7 @@ function old4!(p::Param, U::Utility, pol::Policies)
 end
 
 function ite(maxIter::Int, p::Param;
-             tol::Float64=1e-4, isCheck::Bool=true)
+             tol::Float64=3e-4, isCheck::Bool=true)
 
   U   = Utility(p)
   pol = Policies(p)

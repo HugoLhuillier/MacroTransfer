@@ -23,7 +23,13 @@ immutable Utility
       du_p = (x) -> - 1 / (x * x)
       du_s = (x) -> 2 / (x * x * x)
     elseif p.ut == "CRRA"
-      du   = (x) -> x^(-p.ɣ)
+      du   = function(x)
+        if x > 0
+          return x^(-p.ɣ)
+        else
+          1e9
+        end
+      end
       du_p = (x) -> -p.ɣ * x^(-1 - p.ɣ)
       du_s = (x) -> p.ɣ * (1 + p.ɣ) * x^(-2 - p.ɣ)
     elseif p.ut == "Exp"
