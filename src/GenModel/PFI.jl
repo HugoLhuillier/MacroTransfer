@@ -46,7 +46,7 @@ function young1!(p::Param, U::Utility, pol::Policies)
           _a2  = A2[yi_fc][x[1], _b4]
           # _a2  = _a2 < 0. ? 0. : _a2
 
-          Eu2 += p.П[yi_c, yi_fc] * p.П[yi_p, yi_fp] *
+          Eu2 += p.П[yi_c,yi_fc,2] * p.П[yi_p, yi_fp,4] *
                 U.du(p.R * x[1] + p.Y[yi_fc, 2] + _b4 - _a2) * (p.R + _db)
         end
       end
@@ -71,7 +71,7 @@ function young1!(p::Param, U::Utility, pol::Policies)
         _a2  = A2[yi_fc][x, _b4]
         # _a2  = _a2 < 0. ? 0. : _a2
 
-        Eu2 += p.П[yi_c, yi_fc] * p.П[yi_p, yi_fp] *
+        Eu2 += p.П[yi_c, yi_fc,2] * p.П[yi_p, yi_fp,4] *
               U.du(p.R * x + p.Y[yi_fc, 2] + _b4 - _a2) * (p.R + _db)
       end
     end
@@ -127,18 +127,22 @@ function young1!(p::Param, U::Utility, pol::Policies)
     return _a1
   end
 
+  err = 0
   for (ai_fp, a_fp) in enumerate(p.a_grid)
     for (bi, b) in enumerate(p.b_grid)
       for (yi_c, y_c) in enumerate(p.Y[:,1])
         for (yi_p, y_p) in enumerate(p.Y[:,3])
           _A1 = solver(a_fp, b, y_c, yi_c, yi_p)
+          _A1 = _A1 >= 0 ? _A1 : 0.
           # _A1 may be negative due to the cubic interpolation
+          err = abs(pol.A1[ai_fp,bi,yi_c,yi_p] - _A1) > err ?
+                abs(pol.A1[ai_fp,bi,yi_c,yi_p] - _A1) : err
           pol.A1[ai_fp, bi, yi_c, yi_p] = _A1 >= 0 ? _A1 : 0.
         end
       end
     end
   end
-  info("Young1! ended")
+  info("Young1! ended with error $err")
 
 end
 
@@ -159,7 +163,7 @@ function young2!(p::Param, U::Utility, pol::Policies)
           # _b3 = _b3 < 0. ? 0. : _b3
           # _a3 = _a3 < 0. ? 0. : _a3
 
-          Eu3 += U.du(p.R * x[1] + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp] * p.П[yi_c,yi_fc]
+          Eu3 += U.du(p.R * x[1] + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp,3] * p.П[yi_c,yi_fc,1]
         end
       end
       fvec[1] = U.du(p.R * a_c + b + y_c - x[1]) - p.R * p.β * Eu3
@@ -180,7 +184,7 @@ function young2!(p::Param, U::Utility, pol::Policies)
           # _b3 = _b3 < 0. ? 0. : _b3
           # _a3 = _a3 < 0. ? 0. : _a3
 
-          Eu3 += U.du(p.R * x + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp] * p.П[yi_c,yi_fc]
+          Eu3 += U.du(p.R * x + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c,yi_fp,3] * p.П[yi_c,yi_fc,1]
         end
       end
       return U.du(p.R * a_c + b + y_c - x) - p.R * p.β * Eu3
@@ -253,28 +257,28 @@ function old3!(p::Param, U::Utility, pol::Policies, init::Bool)
       fvec[2] = 1e9
     else
       _a1 = A1[yi_c, yi_p][x[1], x[2]]
-      # if _a1 < 0.
-      #   _a1          = 0.
-      #   _da_a, _da_b = 0., 0.
-      # else
+      if _a1 < 0.
+        _a1          = 0.
+        _da_a, _da_b = 0., 0.
+      else
         if typeof(x[1]) <: ForwardDiff.Dual{2,Float64}
           _da_a, _da_b = gradient(A1[yi_c, yi_p], x[1].value, x[2].value)
         else
           _da_a, _da_b = gradient(A1[yi_c, yi_p], x[1], x[2])
         end
-      # end
+      end
 
       # compute the t = 4 expectations
       Eu4, Eu2 = 0., 0.
       for yi_fp in 1:length(p.Y[:,4])
         for yi_fc in 1:length(p.Y[:,2])
           _b4  = B4[yi_fp,yi_fc][x[1],_a1]
-          # _b4  = _b4 < 0. ? 0. : _b4
+          _b4  = _b4 < 0. ? 0. : _b4
           _a2  = A2[yi_fc][_a1,_b4]
-          # _a2  = _a2 < 0. ? 0. : _a2
+          _a2  = _a2 < 0. ? 0. : _a2
 
-          Eu4 += U.du(p.R * x[1] + p.Y[yi_fp,4] - _b4) * p.П[yi_p,yi_fp] * p.П[yi_c,yi_fc]
-          Eu2 += U.du(p.R * _a1 + p.Y[yi_fc,2] + _b4 - _a2) * p.П[yi_p,yi_fp] * p.П[yi_c,yi_fc]
+          Eu4 += U.du(p.R * x[1] + p.Y[yi_fp,4] - _b4) * p.П[yi_p,yi_fp,4] * p.П[yi_c,yi_fc,2]
+          Eu2 += U.du(p.R * _a1 + p.Y[yi_fc,2] + _b4 - _a2) * p.П[yi_p,yi_fp,4] * p.П[yi_c,yi_fc,2]
         end
       end
       fvec[1] = U.du(p.R * a_p + y_p - x[2] - x[1]) + p.α * _da_a * U.du(y_c + x[2] - _a1) -
@@ -284,28 +288,62 @@ function old3!(p::Param, U::Utility, pol::Policies, init::Bool)
     end
   end
 
-  function f(x, a_p::Float64, y_p::Float64, y_c::Float64, yi_p::Int, yi_c::Int)
-    if x[1] + x[2] > p.R * a_p + y_p
-      f1, f2 = 1e9, 1e9
+  function f_spe!(x, fvec, a_p::Float64, y_p::Float64, y_c::Float64, yi_p::Int, yi_c::Int)
+    if x[1] > p.R * a_p + y_p || any(x -> x == true, isequal.(x,NaN))
+      fvec[1] = 1e9
     else
-      _a1            = A1[yi_c, yi_p][x[1], x[2]]
-      # if _a1 < 0.
-      #   _a1          = 0.
-      #   _da_a, _da_b = 0., 0.
-      # else
-        _da_a, _da_b = gradient(A1[yi_c, yi_p], x[1], x[2])
-      # end
+      _a1 = A1[yi_c, yi_p][x[1], 0.]
+      if _a1 < 0.
+        _a1          = 0.
+        _da_a, _da_b = 0., 0.
+      else
+        if typeof(x[1]) <: ForwardDiff.Dual{2,Float64}
+          _da_a, _da_b = gradient(A1[yi_c, yi_p], x[1].value, 0.)
+        else
+          _da_a, _da_b = gradient(A1[yi_c, yi_p], x[1], 0.)
+        end
+      end
+
       # compute the t = 4 expectations
       Eu4, Eu2 = 0., 0.
       for yi_fp in 1:length(p.Y[:,4])
         for yi_fc in 1:length(p.Y[:,2])
           _b4  = B4[yi_fp,yi_fc][x[1],_a1]
-          # _b4  = _b4 < 0. ? 0. : _b4
+          _b4  = _b4 < 0. ? 0. : _b4
           _a2  = A2[yi_fc][_a1,_b4]
-          # _a2  = _a2 < 0. ? 0. : _a2
+          _a2  = _a2 < 0. ? 0. : _a2
 
-          Eu4 += U.du(p.R * x[1] + p.Y[yi_fp,4] - _b4) * p.П[yi_p,yi_fp] * p.П[yi_c,yi_fc]
-          Eu2 += U.du(p.R * _a1 + p.Y[yi_fc,2] + _b4 - _a2) * p.П[yi_p,yi_fp] * p.П[yi_c,yi_fc]
+          Eu4 += U.du(p.R * x[1] + p.Y[yi_fp,4] - _b4) * p.П[yi_p,yi_fp,4] * p.П[yi_c,yi_fc,2]
+          Eu2 += U.du(p.R * _a1 + p.Y[yi_fc,2] + _b4 - _a2) * p.П[yi_p,yi_fp,4] * p.П[yi_c,yi_fc,2]
+        end
+      end
+      fvec[1] = U.du(p.R * a_p + y_p - x[1]) + p.α * _da_a * U.du(y_c - _a1) -
+              p.R * p.β * (Eu4 + p.α * _da_a * Eu2)
+    end
+  end
+
+  function f(x, a_p::Float64, y_p::Float64, y_c::Float64, yi_p::Int, yi_c::Int)
+    if x[1] + x[2] > p.R * a_p + y_p
+      f1, f2 = 1e9, 1e9
+    else
+      _a1            = A1[yi_c, yi_p][x[1], x[2]]
+      if _a1 < 0.
+        _a1          = 0.
+        _da_a, _da_b = 0., 0.
+      else
+        _da_a, _da_b = gradient(A1[yi_c, yi_p], x[1], x[2])
+      end
+      # compute the t = 4 expectations
+      Eu4, Eu2 = 0., 0.
+      for yi_fp in 1:length(p.Y[:,4])
+        for yi_fc in 1:length(p.Y[:,2])
+          _b4  = B4[yi_fp,yi_fc][x[1],_a1]
+          _b4  = _b4 < 0. ? 0. : _b4
+          _a2  = A2[yi_fc][_a1,_b4]
+          _a2  = _a2 < 0. ? 0. : _a2
+
+          Eu4 += U.du(p.R * x[1] + p.Y[yi_fp,4] - _b4) * p.П[yi_p,yi_fp,4] * p.П[yi_c,yi_fc,2]
+          Eu2 += U.du(p.R * _a1 + p.Y[yi_fc,2] + _b4 - _a2) * p.П[yi_p,yi_fp,4] * p.П[yi_c,yi_fc,2]
         end
       end
       f1 = U.du(p.R * a_p + y_p - x[2] - x[1]) + p.α * _da_a * U.du(y_c + x[2] - _a1) -
@@ -347,13 +385,29 @@ function old3!(p::Param, U::Utility, pol::Policies, init::Bool)
     return (_a3, _b3)
   end
 
-  function pick_root(r::Array, ai_p::Int, yi_p::Int, yi_c::Int)
-    _a, _b = 0., 0.
+  function pick_root(r::Array)
+    # _a, _b = 0., 0.
+    # for i in 1:size(r)[1]
+    #   if r[i][1] > _a
+    #     _a, _b = r[i]
+    #   end
+    # end
+    _a1, _b1 = 0., 0.
+    _a2, _b2 = 0., 0.
     for i in 1:size(r)[1]
-      if r[i][1] > _a
-        _a, _b = r[i]
+      if r[i][1] > _a1
+        _a1, _b1 = r[i]
+      end
+      if r[i][2] > _b2
+        _a2, _b2 = r[i]
       end
     end
+    if (_a1 < _a2) || (_b1 > _b2)
+      warn("Did not work")
+    end
+    _a = _a2 + (1/2) * (_a1 - _a2)
+    _b = _b1 + (1/2) * (_b2 - _b1)
+
     return (_a, _b)
   end
 
@@ -379,6 +433,12 @@ function old3!(p::Param, U::Utility, pol::Policies, init::Bool)
       _a, _b = solver(start[i]..., a_p,y_p,y_c,yi_p,yi_c,ai_p)
       if all(x -> x == true, [_a,_b] .!= Void)
         _a, _b = round(_a,3), round(_b,3)
+        if _a < 0.
+          _a = 0.
+        end
+        if _b < 0.
+          _b = 0.
+        end
         if all(x -> x == false, [isequal(r[i],(_a,_b)) for i in 1:size(r)[1]])
           push!(r, (_a, _b))
           debug("New root: ($_a, $_b)")
@@ -389,7 +449,89 @@ function old3!(p::Param, U::Utility, pol::Policies, init::Bool)
     if size(r)[1] == 0
       return (0., 0.)
     else
-      return pick_root(r, ai_p, yi_p, yi_c)
+      return pick_root(r)
+    end
+  end
+
+  function find_root_spe(maxRoots::Int, a_p::Float64, y_p::Float64, y_c::Float64,
+                    yi_p::Int, yi_c::Int, ai_p::Int)
+
+    r   = Tuple[]
+    #1. look for the root with b = 0.; if f(a,0.) = 0, good
+    n   = NLsolve.nlsolve((x, fvec) -> f_spe!(x, fvec, a_p,y_p,y_c,yi_p,yi_c),
+                 [(p.R * a_p + y_p) / (1 + p.R)], iterations = 150, autodiff = true)
+    if !converged(n)
+      debug("Not converged by middle")
+      n   = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
+                  [0.], iterations = 150, autodiff = true)
+      if !converged(n)
+        debug("Not converged by 0")
+        n   = NLsolve.nlsolve((x, fvec) -> f!(x, fvec, a_c, b, y_c, yi_c),
+                     [p.R * a_p + y_p - 1e-2], iterations = 150, autodiff = true)
+      end
+    end
+    a0, b0 = n.zero[1], 0.
+    f1, f2 = f([a0,b0], a_p, y_p, y_c, yi_p, yi_c)
+    cor    = false
+    if (abs(f1) < 1e-4) && (abs(f2) < 1e-4)
+      # info("Found one sol for b = 0 & ($ai_p, $yi_p, $yi_c)")
+      push!(r, (a0, b0))
+      cor  = true
+    end
+
+    #2. Look for any other root
+    start    = [(pol.A3[ai_p,yi_p,yi_c], pol.B3[ai_p,yi_p,yi_c]); (0.,0.);
+                (0.,p.R * a_p + y_p);(p.R * a_p + y_p,0.);
+                ((p.R * a_p + y_p)/2, (p.R * a_p + y_p)/2)]
+
+    for i in size(start)[1]:maxRoots
+      a0 = y_p * rand(1)[1]
+      b0 = p.α * y_p * rand(1)[1]
+      if a0 + b0 > p.R * a_p + y_p
+        a0 = p.R * a_p + y_p - 1e-1
+        b0 = 0
+      end
+      push!(start,(a0,b0))
+    end
+
+    for i in 1:maxRoots
+      _a, _b = solver(start[i]..., a_p,y_p,y_c,yi_p,yi_c,ai_p)
+      if all(x -> x == true, [_a,_b] .!= Void)
+        _a, _b = round(_a,3), round(_b,3)
+        if (all(x -> x == false, [isequal(r[i],(_a,_b)) for i in 1:size(r)[1]])) && (_b > 0.)
+          push!(r, (_a, _b))
+          debug("New root: ($_a, $_b)")
+        end
+      end
+    end
+
+    #3. and pick the one with the highest b (and highest a if 1 failed)
+    function pick_root_spe(r::Array)
+      _a1, _b1 = 0., 0.
+      _a2, _b2 = 0., 0.
+      for i in 1:size(r)[1]
+        if r[i][2] == 0.
+          _a1, _b1 = r[i]
+        end
+        if r[i][2] > _b2
+          _a2, _b2 = r[i]
+        end
+      end
+      if (_a1 < _a2) || (_b1 > _b2)
+        warn("Did not work")
+      end
+      _a = _a2 + (1/2) * (_a1 - _a2)
+      _b = _b1 + (1/2) * (_b2 - _b1)
+      return (_a, _b)
+    end
+
+    if size(r)[1] == 0
+      # warn("Here @ ($ai_p, $yi_p, $yi_c)")
+      return (0., 0.)
+    elseif !cor
+      return pick_root(r)
+    else
+      return pick_root_spe(r)
     end
   end
 
@@ -410,44 +552,66 @@ function old3!(p::Param, U::Utility, pol::Policies, init::Bool)
 
     if (all(x -> x == true, F1 .> 0)) && (all(x -> x == true, F2 .> 0))
       _a, _b = 0., 0.
+      # info("Corner solution")
     else
-      if ai_p == 1
-        _a, _b = find_root(50, a_p, y_p, y_c, yi_p, yi_c, ai_p)
-      else
-        _a, _b = find_root(50, a_p, y_p, y_c, yi_p, yi_c, ai_p)
-        # info("_a = $_a vs. $(pol.A3[ai_p-1,yi_p,yi_c]) && _b = $_b vs. $(pol.B3[ai_p-1,yi_p,yi_c])")
-        if !init
+      if !init
+        # if (yi_p == 1) && (yi_c == 2)
+          _a, _b = find_root_spe(100, a_p, y_p, y_c, yi_p, yi_c, ai_p)
           i      = 1
-          while ((_a + 1e-2 < pol.A3[ai_p-1,yi_p,yi_c]) || (_b + 1e-2 < pol.B3[ai_p-1,yi_p,yi_c])) && i < 30
-            # info("Not found, looking for more")
-            _a, _b = find_root(70, a_p, y_p, y_c, yi_p, yi_c, ai_p)
-            i      += 1
+          if ai_p > 1
+            # info("_a = $_a vs. $(pol.A3[ai_p-1,yi_p,yi_c]) && _b = $_b vs. $(pol.B3[ai_p-1,yi_p,yi_c])")
+            a_b, b_b = pol.A3[ai_p-1,yi_p,yi_c], pol.B3[ai_p-1,yi_p,yi_c]
+            while ((_a + 1e-1 < a_b) || (_b + 1e-1 < b_b))
+              _a, _b = find_root_spe(50, a_p, y_p, y_c, yi_p, yi_c, ai_p)
+              i      += 1
+              if i == 10
+                warn("Did not find the correct root @ ($ai_p, $yi_p, $yi_c)")
+                break
+              end
+            end
           end
-        end
-      end
-    end
-
-    # check the monotonicity
-    if (ai_p > 1) && !init
-      if (pol.A3[ai_p - 1,yi_p,yi_c] > _a + 1e-2) || (pol.B3[ai_p - 1,yi_p,yi_c] > _b + 1e-2)
-        warn("Did not find the root for savings @ ($ai_p, $yi_p, $yi_c)")
-        _a, _b = pol.A3[ai_p,yi_p,yi_c], pol.B3[ai_p,yi_p,yi_c]
+        # else
+        #   _a, _b = find_root(100, a_p, y_p, y_c, yi_p, yi_c, ai_p)
+        #   i      = 1
+        #   if ai_p > 1
+        #     # info("_a = $_a vs. $(pol.A3[ai_p-1,yi_p,yi_c]) && _b = $_b vs. $(pol.B3[ai_p-1,yi_p,yi_c])")
+        #     a_b, b_b = pol.A3[ai_p-1,yi_p,yi_c], pol.B3[ai_p-1,yi_p,yi_c]
+        #     while ((_a + 1e-1 < a_b) || (_b + 1e-1 < b_b))
+        #       _a, _b = find_root(100, a_p, y_p, y_c, yi_p, yi_c, ai_p)
+        #       i      += 1
+        #       if i == 30
+        #         warn("Did not find the correct root @ ($ai_p, $yi_p, $yi_c)")
+        #         break
+        #       end
+        #     end
+        #   end
+        # end
+      else
+        _a, _b = find_root(100, a_p, y_p, y_c, yi_p, yi_c, ai_p)
       end
     end
 
     return (_a, _b)
   end
 
+  err = 0
   for (yi_p, y_p) in enumerate(p.Y[:,3])
     for (yi_c,y_c) in enumerate(p.Y[:,1])
       for (ai_p, a_p) in enumerate(p.a_grid)
         _A3, _B3 = gen_solver(a_p, y_p, y_c, yi_p, yi_c, ai_p, init)
+        _A3 = _A3 >= 0 ? _A3 : 0.
+        _B3 = _B3 >= 0 ? _B3 : 0.
+        # println("@($ai_p, $yi_p, $yi_c) \n A: $(pol.A3[ai_p,yi_p,yi_c]) vs. $_A3 \n B: $(pol.B3[ai_p,yi_p,yi_c]) vs. $_B3")
+        err = abs(pol.A3[ai_p,yi_p,yi_c] - _A3) > err ?
+              abs(pol.A3[ai_p,yi_p,yi_c] - _A3) : err
+        err = abs(pol.B3[ai_p,yi_p,yi_c] - _B3) > err ?
+              abs(pol.B3[ai_p,yi_p,yi_c] - _B3) : err
         pol.A3[ai_p,yi_p,yi_c] = _A3 >= 0. ? _A3 : 0.
         pol.B3[ai_p,yi_p,yi_c] = _B3 >= 0. ? _B3 : 0.
       end
     end
   end
-  info(" Old3! ended")
+  info(" Old3! ended with error $err")
 end
 
 function old4!(p::Param, U::Utility, pol::Policies)
@@ -468,7 +632,7 @@ function old4!(p::Param, U::Utility, pol::Policies)
           # _b3  = _b3 < 0. ? 0. : _b3
           # _a3  = _a3 < 0. ? 0. : _a3
 
-          Euc += U.du(p.R * _a2 + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
+          Euc += U.du(p.R * _a2 + p.Y[yi_fp,3] - _b3 - _a3) * p.П[yi_c, yi_fp,3] * p.П[yi_c, yi_fc,1]
         end
       end
       fvec[1] = U.du(p.R * a_p + y_p - x[1]) - p.α * U.du(p.R * a_c + p.Y[yi_c,2] + x[1] - _a2)
@@ -490,7 +654,7 @@ function old4!(p::Param, U::Utility, pol::Policies)
           # _b3  = _b3 < 0. ? 0. : _b3
           # _a3  = _a3 < 0. ? 0. : _a3
 
-          Euc += U.du(p.R * _a2 + p.Y[yi_fp,3]-_b3-_a3) * p.П[yi_c, yi_fp] * p.П[yi_c, yi_fc]
+          Euc += U.du(p.R * _a2 + p.Y[yi_fp,3]-_b3-_a3) * p.П[yi_c, yi_fp,3] * p.П[yi_c, yi_fc,1]
         end
       end
       f1 = U.du(p.R * a_p + y_p - x) - p.α * U.du(p.R * a_c + p.Y[yi_c,2] + x - _a2)
@@ -529,22 +693,26 @@ function old4!(p::Param, U::Utility, pol::Policies)
     return _b
   end
 
+  err = 0
   for (ai_p, a_p) in enumerate(p.a_grid)
     for (ai_c, a_c) in enumerate(p.a_grid)
       for (yi_p, y_p) in enumerate(p.Y[:,4])
         for yi_c in 1:length(p.Y[:,2])
           _B4 = solver(a_p, y_p, a_c, yi_c, yi_p)
+          _B4 = _B4 >= 0. ? _B4 : 0.
           # Both may be negative due to approximations
+          err = abs(pol.B4[ai_p,ai_c,yi_p,yi_c] - _B4) > err ?
+                abs(pol.B4[ai_p,ai_c,yi_p,yi_c] - _B4) : err
           pol.B4[ai_p, ai_c, yi_p, yi_c] = _B4 >= 0. ? _B4 : 0.
         end
       end
     end
   end
-  info(" Old4! ended")
+  info(" Old4! ended with error $err")
 end
 
 function ite(maxIter::Int, p::Param;
-             tol::Float64=3e-4, isCheck::Bool=true)
+             tol::Float64=1e-3, isCheck::Bool=true)
 
   U   = Utility(p)
   pol = Policies(p)
@@ -565,7 +733,7 @@ function ite(maxIter::Int, p::Param;
   for iter in 1:maxIter
     old4!(p, U, pol)
     young1!(p, U, pol)
-    if iter == 1
+    if err > 1
       old3!(p, U, pol,true)
     else
       old3!(p, U, pol,false)
@@ -579,7 +747,7 @@ function ite(maxIter::Int, p::Param;
     # ax_tra2[:plot](p.a_grid,B3[1,2][p.a_grid],color = colors(iter))
 
     if isCheck
-      info("Error @ iteration $iter: ", err)
+      println("\t\tError @ iteration $iter: ", err)
     end
     if err < tol
       info("Find solutions after $iter iterations")

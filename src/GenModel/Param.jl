@@ -38,9 +38,10 @@ immutable Param
 
     # build the income stochastic process via Tauchen algorithm
     Y         = zeros(lengthInc, 4)
-    П         = zeros(lengthInc, lengthInc)
+    П         = zeros(lengthInc, lengthInc,4)
     # g(h::Int) = (h^2 - 0.45 * h^3/2)
-    g(h::Int) = 2 * (h^2 - 0.45*h^3/2 + 1)
+    g(h::Int) = 1.5 * (0.3 * h^2 - 0.14*h^3/2 + 4.)
+    # g(h::Int) = 1.5 * (h^2 - 0.45*h^3/2 + 1) # works not too bad
     s(h::Int) = h^2 - 5 * h + 7
     # for h in 2:4
     #   # mc      = QuantEcon.tauchen(lengthInc, ρ, h, g(h) - ρ/2 * g(h-1), 2)
@@ -53,7 +54,11 @@ immutable Param
     # Y[:,1]    = Y[:,2] / 2
     # Y[Y .< UI]= UI
     # Y    = Y
-    П         = [0.4 0.6; 0.2 0.8]
+    # П         = [0.4 0.6; 0.2 0.8]
+    П[:,:,1]    = [0.5 0.5; 0.4 0.6]
+    П[:,:,2]    = [0.3 0.7; 0.2 0.8]
+    П[:,:,3]    = [0.4 0.6; 0.1 0.9]
+    П[:,:,4]    = [0.7 0.3; 0.3 0.7]
     for h in 1:4
       Y[1,h] = UI
       Y[2,h] = g(h)
