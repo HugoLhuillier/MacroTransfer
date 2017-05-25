@@ -1,23 +1,25 @@
-module GenPlotPolicies
+# uncomment and run to obtain the plots presented in the thesis
 
-include("./../GenModel/PFI.jl")
-using PyPlot
-info("Computation of the solution")
-p   = GenPFI.Param(size = 5)
-pol = GenPFI.ite(40,p;tol=4e-3)
+# using PyPlot, JLD
+# include("src/GenModel/PFI.jl")
+# p      = GenPFI.Param(size=20, ut = "CRRA", ɣ = 3., α = 0.9);
+# t      = load("output/env/perfect_pol_corr.jld");
+# t      = t["pol"];
+# pol_al = t[1];
 
-function plot_4(isSurface::Bool)
-  B4 = GenPFI.interp(p, pol.B4, "B4");
+function plot_4(pol::GenPFI.Policies,p::GenPFI.Param;isSurface::Bool=false)
+  B4 = GenPFI.interp_lin(p, pol.B4, "B4");
   n  = 50
   xx = linspace(0.,2*maximum(p.Y[:,4]), n);
-  yy = linspace(0.,2*maximum(p.Y[:,2]), n);
+  yy = linspace(0.,5*maximum(p.Y[:,2]), n);
 
   Zb1 = zeros(n, n);
   Zb2 = zeros(n, n);
   for i in 1:n
     for j in 1:n
-      Zb1[j,i] = B4[1,4][xx[i], yy[j]]
-      Zb2[j,i] = B4[4,1][xx[i], yy[j]]
+      Zb1[j,i] = B4[1,2][xx[i], yy[j]]
+      # Zb1[j,i] = B4[2,2][xx[i], yy[j]]
+      Zb2[j,i] = B4[2,1][xx[i], yy[j]]
     end
   end
 
@@ -33,30 +35,36 @@ function plot_4(isSurface::Bool)
   else
     ax = fig[:add_subplot](1,1,1, projection = "3d")
     ax[:plot_wireframe](xgrid, ygrid, Zb1, rstride=5, cstride=5, linewidth=1, alpha = 0.8,
-                        color = "salmon", label = L"$y_1, \tilde{y}_4$")
+                        color = "salmon", label = L"$y_1, \tilde{y}_2$")
     ax[:plot_wireframe](xgrid, ygrid, Zb2, rstride=5, cstride=5, linewidth=1, alpha = 0.8,
-                        color = "red", label = L"$y_4, \tilde{y}_1$")
+                        color = "darkred", label = L"$y_2, \tilde{y}_1$")
     ax[:view_init](elev=11., azim=-106.)
     xlabel("Old's wealth")
     ylabel("Young's wealth")
     title("Age 4 transfer")
-    legend(loc="center right")
+    legend(bbox_to_anchor=(0.05,0.5), loc=1)
   end
 
 end
 
-function plot_1(isSurface)
+function plot_1(pol::GenPFI.Policies,p::GenPFI.Param;isSurface::Bool=false)
   n  = 50
-  A1 = GenPFI.interp(p, pol.A1, "A1");
+  A1 = GenPFI.interp_lin(p, pol.A1, "A1");
   xx = linspace(0.,2*maximum(p.Y[:,3]), n);
-  yy = linspace(0.,1/2*maximum(p.Y[:,3]), n);
+  yy = linspace(0.,2*maximum(p.Y[:,3]), n);
   Z1  = zeros(n, n);
   Z2  = zeros(n, n);
+  C1  = zeros(n,n);
+  C2  = zeros(n,n);
 
   for i in 1:n
     for j in 1:n
       Z1[j,i] = A1[1,1][xx[i], yy[j]]
-      Z2[j,i] = A1[1,4][xx[i], yy[j]]
+      # Z1[j,i] = A1[2,1][xx[i], yy[j]]
+      Z2[j,i] = A1[2,2][xx[i], yy[j]]
+      # Z2[j,i] = A1[1,2][xx[i], yy[j]]
+      # C1[j,i] = p.Y[1,2] + yy[j] - A1[1,2][xx[i],yy[j]]
+      # C2[j,i] = p.Y[2,2] + yy[j] - A1[1,2][xx[i],yy[j]]
     end
   end
 
@@ -65,6 +73,7 @@ function plot_1(isSurface)
 
   # with PyPlot
   fig = figure("policies_1",figsize=(10,10))
+  # ax  = subplot2grid((2, 2), (0, 0), rowspan=2)
   ax = fig[:add_subplot](1,1,1, projection = "3d")
   if isSurface
     ax[:plot_surface](xgrid, ygrid, Z1, rstride=5, cstride=5, linewidth=1, cmap=ColorMap("Reds"))
@@ -72,27 +81,31 @@ function plot_1(isSurface)
     ax[:plot_wireframe](xgrid, ygrid, Z1, rstride=5, cstride=5, linewidth=1,
                         color = "salmon", alpha = 0.8, label = L"$\tilde{y}_1, y_1$")
     ax[:plot_wireframe](xgrid, ygrid, Z2, rstride=5, cstride=5, linewidth=1,
-                        color = "red", alpha = 0.8, label = L"$\tilde{y}_1, y_4$")
+                        color = "darkred", alpha = 0.8, label = L"$\tilde{y}_2, y_2$")
   end
-  ax[:view_init](elev=26  ., azim=113.)
+  ax[:view_init](elev=18, azim=-19)
   xlabel("Old's savings")
   ylabel("Transfer received")
   title("Age 1 savings")
   legend(bbox_to_anchor=(0.05,0.5), loc=1)
+
 end
 
-function plot_2(isSurface)
+function plot_2(pol::GenPFI.Policies,p::GenPFI.Param;isSurface::Bool=false)
   n  = 50
-  A2 = GenPFI.interp(p, pol.A2, "A2");
+  A2 = GenPFI.interp_lin(p, pol.A2, "A2");
   xx = linspace(0.,2*maximum(p.Y[:,3]), n);
-  yy = linspace(0.,1/2*maximum(p.Y[:,3]), n);
+  yy = linspace(0.,2*maximum(p.Y[:,3]), n);
   Z1  = zeros(n, n);
   Z2  = zeros(n, n);
+  C1  = zeros(n,n);
 
   for i in 1:n
     for j in 1:n
       Z1[j,i] = A2[1][xx[i],yy[j]]
-      Z2[j,i] = A2[4][xx[i],yy[j]]
+      Z2[j,i] = A2[2][xx[i],yy[j]]
+
+      # C1[j,i] = p.R * xx[i] + p.Y[1,2] + yy[j] - A2[1][xx[i],yy[j]]
     end
   end
 
@@ -108,107 +121,62 @@ function plot_2(isSurface)
     ax[:plot_wireframe](xgrid, ygrid, Z1, rstride=5, cstride=5, linewidth=1, alpha = 0.8,
                         color = "salmon", label = L"$\tilde{y}_1$")
     ax[:plot_wireframe](xgrid, ygrid, Z2, rstride=5, cstride=5, linewidth=1, alpha = 0.8,
-                        color = "red", label = L"$\tilde{y}_4$")
+                        color = "darkred", label = L"$\tilde{y}_2$")
   end
-  ax[:view_init](elev=13., azim=-154.)
-  xlabel("Young's savings")
+  ax[:view_init](elev=14., azim=134.)
+  xlabel("Young's wealth")
   ylabel("Transfer received")
   title("Age 2 savings")
+  legend(bbox_to_anchor=(0.15,0.5), loc=1)
 end
 
-function plot_3_sav()
-  A3 = GenPFI.interp(p, pol.A3, "A3")
-  X  = linspace(0.,2*maximum(p.Y[:,3]),100)
+function plot_3(pol::GenPFI.Policies,p::GenPFI.Param)
+  A3 = GenPFI.interp_lin(p, pol.A3, "A3")
+  B3 = GenPFI.interp_lin(p, pol.B3, "B3")
+  # A3 = GenPFI.interp(p, pol.A3, "A3")
+  # B3 = GenPFI.interp(p, pol.B3, "B3")
+  Xs = linspace(0.,p.a_grid[end],100)
 
   fig = figure("policies_3",figsize=(10,10))
   subplots_adjust(wspace=0.4, hspace=0.4)
-  # ax1 = subplot2grid((1, 2), (0, 0), colspan=1)
+  # subplots_adjust(wspace=0.4, hspace=0.4)
   ax1 = fig[:add_subplot](2,2,1)
-  ax1[:plot](X, A3[1,1][X], label = L"$\tilde{y}_1$", color = "pink")
-  # ax1[:scatter](p.a_grid, A3[1,1][p.a_grid], label = "On grid", color = "black")
-  ax1[:plot](X, A3[1,2][X], label = L"$\tilde{y}_2$", color = "salmon")
-  ax1[:plot](X, A3[1,3][X], label = L"$\tilde{y}_3$", color = "indianred")
-  ax1[:plot](X, A3[1,4][X], label = L"$\tilde{y}_4$", color = "darkred")
+  ax1[:plot](Xs, A3[1,1][Xs], label = L"$\tilde{y}_1$", color = "salmon")
+  # ax1[:scatter](p.a_grid, [pol.A3[i,1,1] for i in 1:length(p.a_grid)], color = "black")
+  ax1[:plot](Xs, A3[1,2][Xs], label = L"$\tilde{y}_2$", color = "darkred")
+  # ax1[:scatter](p.a_grid, [pol.A3[i,1,2] for i in 1:length(p.a_grid)], color = "black")
   xlabel("Wealth")
   ylabel(L"$\mathcal{A}_3$")
-  title(L"$y_1$")
-  legend(bbox_to_anchor=(-0.1, 0))
+  title(L"Savings, $y_1$")
+  legend()
 
   ax2 = fig[:add_subplot](2,2,2)
-  ax2[:plot](X, A3[2,1][X], color = "pink")
-  # ax2[:scatter](p.a_grid, A3[2,1][p.a_grid], label = "On grid", color = "black")
-  ax2[:plot](X, A3[2,2][X], color = "salmon")
-  ax2[:plot](X, A3[2,3][X], color = "indianred")
-  ax2[:plot](X, A3[2,4][X], color = "darkred")
+  ax2[:plot](Xs, A3[2,1][Xs], label = L"$\tilde{y}_1$", color = "salmon")
+  # ax1[:scatter](p.a_grid, [pol.A3[i,1,1] for i in 1:length(p.a_grid)], color = "black")
+  ax2[:plot](Xs, A3[2,2][Xs], label = L"$\tilde{y}_2$", color = "darkred")
+  # ax1[:scatter](p.a_grid, [pol.A3[i,1,2] for i in 1:length(p.a_grid)], color = "black")
   xlabel("Wealth")
   ylabel(L"$\mathcal{A}_3$")
-  title(L"$y_2$")
+  title(L"Savings, $y_2$")
+  legend()
 
   ax3 = fig[:add_subplot](2,2,3)
-  ax3[:plot](X, A3[3,1][X], color = "pink")
-  # ax1[:scatter](p.a_grid, A3[3,1][p.a_grid], label = "On grid", color = "black")
-  ax3[:plot](X, A3[3,2][X], color = "salmon")
-  ax3[:plot](X, A3[3,3][X], color = "indianred")
-  ax3[:plot](X, A3[3,4][X], color = "darkred")
-  xlabel("Wealth")
-  ylabel(L"$\mathcal{A}_3$")
-  title(L"$y_3$")
-
-  ax4 = fig[:add_subplot](2,2,4)
-  ax4[:plot](X, A3[4,1][X], color = "pink")
-  # ax1[:scatter](p.a_grid, A3[4,1][p.a_grid], label = "On grid", color = "black")
-  ax4[:plot](X, A3[4,2][X], color = "salmon")
-  ax4[:plot](X, A3[4,3][X], color = "indianred")
-  ax4[:plot](X, A3[4,4][X], color = "darkred")
-  xlabel("Wealth")
-  ylabel(L"$\mathcal{A}_3$")
-  title(L"$y_4$")
-
-end
-
-function plot_3_trans()
-  B3 = GenPFI.interp(p, pol.B3, "B3")
-  X  = linspace(0.,2*maximum(p.Y[:,3]),100)
-
-  fig = figure("policies_3",figsize=(10,10))
-  subplots_adjust(wspace=0.4, hspace=0.4)
-  ax1 = fig[:add_subplot](2,2,1)
-  ax1[:plot](X, B3[1,1][X], label = L"$\tilde{y}_1$", color = "pink")
-  ax1[:plot](X, B3[1,2][X], label = L"$\tilde{y}_2$", color = "salmon")
-  ax1[:plot](X, B3[1,3][X], label = L"$\tilde{y}_3$", color = "indianred")
-  ax1[:plot](X, B3[1,4][X], label = L"$\tilde{y}_4$", color = "darkred")
+  ax3[:plot](Xs, B3[1,1][Xs], label = L"$\tilde{y}_1$", color = "salmon")
+  # ax3[:scatter](p.a_grid, [pol.B3[i,1,1] for i in 1:length(p.a_grid)], color = "black")
+  ax3[:plot](Xs, B3[1,2][Xs], label = L"$\tilde{y}_2$", color = "darkred")
+  # ax3[:scatter](p.a_grid, [pol.B3[i,1,2] for i in 1:length(p.a_grid)], color = "black")
   xlabel("Wealth")
   ylabel(L"$\mathcal{B}_3$")
-  title(L"$y_1$")
-  legend(bbox_to_anchor=(-0.1, 0))
+  title(L"Transfer, $y_1$")
+  legend()
 
-  ax2 = fig[:add_subplot](2,2,2)
-  ax2[:plot](X, B3[2,1][X], color = "pink")
-  ax2[:plot](X, B3[2,2][X], color = "salmon")
-  ax2[:plot](X, B3[2,3][X], color = "indianred")
-  ax2[:plot](X, B3[2,4][X], color = "darkred")
+  ax3 = fig[:add_subplot](2,2,4)
+  ax3[:plot](Xs, B3[2,1][Xs], label = L"$\tilde{y}_1$", color = "salmon")
+  # ax3[:scatter](p.a_grid, [pol.B3[i,1,1] for i in 1:length(p.a_grid)], color = "black")
+  ax3[:plot](Xs, B3[2,2][Xs], label = L"$\tilde{y}_2$", color = "darkred")
+  # ax3[:scatter](p.a_grid, [pol.B3[i,1,2] for i in 1:length(p.a_grid)], color = "black")
   xlabel("Wealth")
   ylabel(L"$\mathcal{B}_3$")
-  title(L"$y_2$")
-
-  ax3 = fig[:add_subplot](2,2,3)
-  ax3[:plot](X, B3[3,1][X], color = "pink")
-  ax3[:plot](X, B3[3,2][X], color = "salmon")
-  ax3[:plot](X, B3[3,3][X], color = "indianred")
-  ax3[:plot](X, B3[3,4][X], color = "darkred")
-  xlabel("Wealth")
-  ylabel(L"$\mathcal{B}_3$")
-  title(L"$y_3$")
-
-  ax4 = fig[:add_subplot](2,2,4)
-  ax4[:plot](X, B3[4,1][X], color = "pink")
-  # ax1[:scatter](p.a_grid, A3[4,1][p.a_grid], label = "On grid", color = "black")
-  ax4[:plot](X, B3[4,2][X], color = "salmon")
-  ax4[:plot](X, B3[4,3][X], color = "indianred")
-  ax4[:plot](X, B3[4,4][X], color = "darkred")
-  xlabel("Wealth")
-  ylabel(L"$\mathcal{B}_3$")
-  title(L"$y_4$")
-end
-
+  title(L"Transfer, $y_2$")
+  legend()
 end
