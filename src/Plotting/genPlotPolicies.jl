@@ -10,8 +10,8 @@
 function plot_4(pol::GenPFI.Policies,p::GenPFI.Param;isSurface::Bool=false)
   B4 = GenPFI.interp_lin(p, pol.B4, "B4");
   n  = 50
-  xx = linspace(0.,2*maximum(p.Y[:,4]), n);
-  yy = linspace(0.,5*maximum(p.Y[:,2]), n);
+  xx = linspace(0.,4*maximum(p.Y[:,4]), n);
+  yy = linspace(0.,4*maximum(p.Y[:,2]), n);
 
   Zb1 = zeros(n, n);
   Zb2 = zeros(n, n);
@@ -51,7 +51,7 @@ function plot_1(pol::GenPFI.Policies,p::GenPFI.Param;isSurface::Bool=false)
   n  = 50
   A1 = GenPFI.interp_lin(p, pol.A1, "A1");
   xx = linspace(0.,2*maximum(p.Y[:,3]), n);
-  yy = linspace(0.,2*maximum(p.Y[:,3]), n);
+  yy = linspace(0.,4*maximum(p.Y[:,3]), n);
   Z1  = zeros(n, n);
   Z2  = zeros(n, n);
   C1  = zeros(n,n);
@@ -59,7 +59,7 @@ function plot_1(pol::GenPFI.Policies,p::GenPFI.Param;isSurface::Bool=false)
 
   for i in 1:n
     for j in 1:n
-      Z1[j,i] = A1[1,1][xx[i], yy[j]]
+      Z1[j,i] = A1[1,2][xx[i], yy[j]]
       # Z1[j,i] = A1[2,1][xx[i], yy[j]]
       Z2[j,i] = A1[2,2][xx[i], yy[j]]
       # Z2[j,i] = A1[1,2][xx[i], yy[j]]

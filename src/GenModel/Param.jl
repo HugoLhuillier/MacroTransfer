@@ -29,7 +29,7 @@ immutable Param
   function Param(;R           = 1.01,
                   α           = 0.8,
                   β           = 0.98,
-                  ρ           = 0.8,
+                  ρ           = 0.95,
                   lengthInc   = 2,
                   size        = 20,
                   ut          = "Log",
@@ -39,17 +39,19 @@ immutable Param
     # build the income stochastic process via Tauchen algorithm
     Y         = zeros(lengthInc, 4)
     П         = zeros(lengthInc, lengthInc,4)
-    # g(h::Int) = (h^2 - 0.45 * h^3/2)
     g(h::Int) = 1.5 * (0.3 * h^2 - 0.14*h^3/2 + 4.)
-    # g(h::Int) = 1.5 * (h^2 - 0.45*h^3/2 + 1) # works not too bad
     s(h::Int) = h^2 - 5 * h + 7
-    # for h in 2:4
+    # for h in 1:4
     #   # mc      = QuantEcon.tauchen(lengthInc, ρ, h, g(h) - ρ/2 * g(h-1), 2)
-    #   mc      = QuantEcon.tauchen(lengthInc, ρ, s(h), g(h) - ρ/2 * g(h-1), 2)
-    #   Y[:,h]  = mc.state_values
-    #   if h == 4
-    #     П[:]  = mc.p
+    #   if h == 1
+    #     mc      = QuantEcon.tauchen(lengthInc, ρ, s(h), g(h)+1, ceil(Int,h/2))
+    #   else
+    #     mc      = QuantEcon.tauchen(lengthInc, ρ, s(h), g(h) - ρ/2 * g(h-1), ceil(Int,h/2))
     #   end
+    #   # Y[:,h]  = mc.state_values
+    #   #if h == 4
+    #     П[:,:,h]  = mc.p
+    #   #end
     # end
     # Y[:,1]    = Y[:,2] / 2
     # Y[Y .< UI]= UI

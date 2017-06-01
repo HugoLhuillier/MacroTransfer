@@ -148,6 +148,3 @@ function plot_sim(p::GenPFI.Param,pol::GenPFI.Policies, gen::Int, a0::Float64, y
   ylabel("Income")
   #title("Income shocks")
 end
-
-
-end

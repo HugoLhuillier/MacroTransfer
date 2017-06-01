@@ -13,8 +13,8 @@ type Household
 
   # create a new instance
   function Household(t::Int64, p::GenPFI.Param)
-    yi_p = rand(1:2)
-    yi_c = rand(1:2)
+    yi_p = rand(1:size(p.Y)[1])
+    yi_c = rand(1:size(p.Y)[1])
     a_p  = p.a_grid[rand(1:length(p.a_grid))]
     return new(a_p,0.,0.,yi_p,yi_c,t)
   end
@@ -72,7 +72,7 @@ function update_h!(p::GenPFI.Param, h::Household, itp::Dict)
 end
 
 #============================#
-#       MEASURE
+#       MEASURES
 #============================#
 
 # compute the moments of the measure λ. use as moments
@@ -157,7 +157,7 @@ end
 #============================#
 
 # build the initial Array of households
-function init(numbFam::Int)
+function init(numbFam::Int, p::GenPFI.Param)
   # init the families
   Families = Array{Household}(numbFam)
   for i in 1:numbFam
@@ -179,7 +179,7 @@ function stationarity(p::GenPFI.Param, pol::GenPFI.Policies, numbFam::Int;
   itp        = Dict("A1" => A1, "A2" => A2, "A3" => A3, "B3" => B3, "B4" => B4);
 
   # need to initialize the distribution
-  Families = init(numbFam)
+  Families = init(numbFam,p)
   m3, m4   = Measure(Families,p,3), Measure(Families,p,4)
 
   for iter in 1:maxIter

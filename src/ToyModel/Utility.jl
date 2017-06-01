@@ -15,7 +15,6 @@ function pick_u(p::Param)
   return du
 end
 
-# returns the derivative of the utility function
 function pick_du(p::Param)
   gamma, ut      = p.gamma, p.ut
 
@@ -30,18 +29,4 @@ function pick_du(p::Param)
   end
 
   return du
-end
-
-# returns the inverse of the derivative.
-function pick_idu(p::Param)
-  if p.ut == "Log"
-    idu = (x) -> 1 / x
-  elseif p.ut == "CRRA"
-    idu = (x) -> (1 / x)^(1 / p.gamma)
-  elseif p.ut == "Exp"
-    idu = (x) -> - log(x) / p.gamma
-  elseif p.ut == "Quad"
-    idu = (x) -> (1 - x) / p.gamma
-  end
-  return idu
 end
